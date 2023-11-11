@@ -3,10 +3,15 @@ a go implementation of both file and folder picking using [go-common-file-dialog
 this utility returns the path of a folder or file. e.g. `C:\Windows\System32\notepad.exe` or `C:\Windows\System32\`
 
 ```
-Usage: picker.exe <mode> [ext for file mode]
-Modes:
-file [ext] - Opens a dialog to select a file with the optional extension.
-folder - Opens a dialog to select a folder.
+Usage of picker.exe:
+  -ext string
+        File extension filter (used in 'file' mode)
+  -mode string
+        Mode of operation: 'file' or 'folder'
+
+Example:
+  picker.exe -mode file -ext .txt
+  picker.exe -mode folder
 ```
 
 built upon [filepicker](https://github.com/Atlas-OS/utilities/tree/main#filepicker) by the atlasos team.
