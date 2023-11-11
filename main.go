@@ -1,90 +1,116 @@
 package main
 
 import (
-    "fmt"
-    "os"
-    "strings"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
 
-    "github.com/harry1453/go-common-file-dialog/cfd"
-    "github.com/harry1453/go-common-file-dialog/cfdutil"
+	"github.com/harry1453/go-common-file-dialog/cfd"
 )
 
+// constants for the modes and exit codes
 const (
-    modeFile     = "file"
-    modeFolder   = "folder"
-    credit       = "developed by unethical.\ncopyright 2023\n"
-    exitErr      = 1
-    exitCancel   = 2
+	modeFile   = "file"
+	modeFolder = "folder"
+	exitErr    = 1
+	exitCancel = 2
 )
 
+// flags for command-line arguments
+var (
+	mode = flag.String("mode", "", "Mode of operation: 'file' or 'folder'")
+	ext  = flag.String("ext", "", "File extension filter (used in 'file' mode)")
+)
+
+// handleError deals with errors and exits if needed
 func handleError(err error, exitOnErr bool) {
-    if err != nil {
-        if err == cfd.ErrorCancelled {
-            fmt.Println("Operation cancelled by the user.")
-            os.Exit(exitCancel)
-        }
-
-        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-        if exitOnErr {
-            os.Exit(exitErr)
-        }
-    }
+	if err != nil {
+		if err == cfd.ErrorCancelled {
+			fmt.Println("Operation cancelled by the user.")
+			os.Exit(exitCancel)
+		} else {
+			fmt.Fprintf(os.Stderr, "An error occurred: %v\n", err)
+		}
+		if exitOnErr {
+			os.Exit(exitErr)
+		}
+	}
 }
 
+// showHelp displays help info about how to use this program
 func showHelp() {
-    fmt.Println("Usage: picker.exe <mode> [ext for file mode]")
-    fmt.Println("Modes:")
-    fmt.Println("\tfile [ext]  - Opens a dialog to select a file with the optional extension.")
-    fmt.Println("\tfolder      - Opens a dialog to select a folder.")
+	fmt.Println("Usage of picker.exe:")
+	flag.PrintDefaults()
+	fmt.Println("\nExample:")
+	fmt.Println("  picker.exe -mode file -ext .txt")
+	fmt.Println("  picker.exe -mode folder")
 }
 
+// cleanExtensions takes your file extensions and makes them nice and tidy
+func cleanExtensions(rawExt string) []string {
+	var extensions []string
+	for _, ext := range strings.Split(rawExt, ",") {
+		ext = strings.TrimSpace(ext)
+		if ext != "" {
+			if !strings.HasPrefix(ext, ".") {
+				ext = "." + ext
+			}
+			extensions = append(extensions, ext)
+		}
+	}
+	return extensions
+}
+
+// validateMode checks if the mode is either 'file' or 'folder'
+func validateMode(m string) bool {
+	return m == modeFile || m == modeFolder
+}
+
+// validateExtensions makes sure your file extensions look good
+func validateExtensions(exts []string) bool {
+	for _, ext := range exts {
+		if !strings.HasPrefix(ext, ".") || len(ext) < 2 {
+			return false
+		}
+	}
+	return true
+}
+
+// main is where everything starts
 func main() {
-    if len(os.Args) < 2 {
-        fmt.Println(credit)
-        showHelp()
-        os.Exit(exitErr)
-    }
+	flag.Usage = showHelp
+	flag.Parse()
 
-    mode := strings.ToLower(os.Args[1])
+	// need to pick a mode to get going
+	if *mode == "" {
+		showHelp()
+		os.Exit(exitErr)
+	}
 
-    switch mode {
-    case modeFile:
-        fileFilters := []cfd.FileFilter{}
-        if len(os.Args) == 3 {
-            ext := os.Args[2]
-            if !strings.HasPrefix(ext, ".") {
-                ext = "." + ext
-            }
-            fileFilters = append(fileFilters, cfd.FileFilter{DisplayName: ext[1:] + " Files", Pattern: "*" + ext})
-        }
+	// check if the mode is valid
+	if !validateMode(strings.ToLower(*mode)) {
+		fmt.Println("Invalid mode provided.")
+		showHelp()
+		os.Exit(exitErr)
+	}
 
-        result, err := cfdutil.ShowOpenFileDialog(cfd.DialogConfig{
-            Title:       "Select a File",
-            Role:        "unethicalFilePick",
-            FileFilters: fileFilters,
-        })
-        handleError(err, true)
-        
-        fmt.Println(result)
+	// clean up and validate extensions if provided
+	cleanedExtensions := cleanExtensions(*ext)
+	if len(cleanedExtensions) > 0 && !validateExtensions(cleanedExtensions) {
+		fmt.Println("Invalid file extension format.")
+		os.Exit(exitErr)
+	}
 
-    case modeFolder:
-        dialog, err := cfd.NewSelectFolderDialog(cfd.DialogConfig{
-            Title: "Select a Folder",
-            Role:  "unethicalFolderPick",
-        })
-        handleError(err, false)
-
-        err = dialog.Show()
-        handleError(err, false)
-
-        result, err := dialog.GetResult()
-        handleError(err, true)
-        
-        fmt.Println(result)
-
-    default:
-        fmt.Println("Invalid mode provided.")
-        showHelp()
-        os.Exit(exitErr)
-    }
+	// decide what to do based on the mode
+	switch strings.ToLower(*mode) {
+	case modeFile:
+		executeFileMode(*ext)
+	case modeFolder:
+		executeFolderMode()
+	default:
+		fmt.Println("Invalid mode provided.")
+		showHelp()
+		os.Exit(exitErr)
+	}
 }
