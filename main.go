@@ -17,14 +17,17 @@ const (
     exitCancel   = 2
 )
 
-func showError(err error) {
+func handleError(err error, exitOnErr bool) {
     if err != nil {
         if err == cfd.ErrorCancelled {
             fmt.Println("Operation cancelled by the user.")
             os.Exit(exitCancel)
         }
+
         fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-        os.Exit(exitErr)
+        if exitOnErr {
+            os.Exit(exitErr)
+        }
     }
 }
 
@@ -60,7 +63,7 @@ func main() {
             Role:        "unethicalFilePick",
             FileFilters: fileFilters,
         })
-        showError(err)
+        handleError(err, true)
         
         fmt.Println(result)
 
@@ -69,13 +72,13 @@ func main() {
             Title: "Select a Folder",
             Role:  "unethicalFolderPick",
         })
-        showError(err)
+        handleError(err, false)
 
         err = dialog.Show()
-        showError(err)
+        handleError(err, false)
 
         result, err := dialog.GetResult()
-        showError(err)
+        handleError(err, true)
         
         fmt.Println(result)
 
